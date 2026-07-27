@@ -403,7 +403,10 @@
     <div class="container">
         <div class="header">
             <h1>SubTrack 💸✨</h1>
-            <span style="font-size:24px">👋</span>
+            <div style="display:flex; gap:8px;">
+                <button id="export-btn" title="Esporta dati" style="background:#fff; border:none; width:38px; height:38px; border-radius:50%; font-size:16px; box-shadow:0 4px 6px rgba(0,0,0,0.05); cursor:pointer;">📤</button>
+                <button id="import-btn" title="Importa dati" style="background:#fff; border:none; width:38px; height:38px; border-radius:50%; font-size:16px; box-shadow:0 4px 6px rgba(0,0,0,0.05); cursor:pointer;">📥</button>
+            </div>
         </div>
 
         <div class="dashboard" id="dashboard">
@@ -486,16 +489,58 @@
         </div>
     </div>
 
+    <div class="overlay" id="onboarding-overlay">
+        <div class="modal" style="text-align:center;">
+            <div style="font-size:48px; margin-bottom:6px;">👋💸</div>
+            <h2 style="font-size:20px; margin-bottom:8px;">Benvenuto su SubTrack!</h2>
+            <p style="color:var(--text-muted); font-size:14px; margin-bottom:22px;">
+                Tieni sotto controllo abbonamenti e spese ricorrenti in pochi secondi.
+            </p>
+
+            <div style="text-align:left; display:flex; flex-direction:column; gap:14px; margin-bottom:24px;">
+                <div style="display:flex; gap:12px; align-items:flex-start;">
+                    <span style="font-size:22px;">➕</span>
+                    <div>
+                        <div style="font-weight:700; font-size:14px;">Aggiungi un abbonamento</div>
+                        <div style="font-size:12.5px; color:var(--text-muted);">Tocca il pulsante in basso a destra</div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:12px; align-items:flex-start;">
+                    <span style="font-size:22px;">👆</span>
+                    <div>
+                        <div style="font-weight:700; font-size:14px;">Modifica o elimina</div>
+                        <div style="font-size:12.5px; color:var(--text-muted);">Tocca una card per aprirla</div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:12px; align-items:flex-start;">
+                    <span style="font-size:22px;">🔒</span>
+                    <div>
+                        <div style="font-weight:700; font-size:14px;">Dati privati</div>
+                        <div style="font-size:12.5px; color:var(--text-muted);">Restano solo su questo dispositivo</div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" id="onboarding-close" style="width:100%;">Iniziamo! 🚀</button>
+        </div>
+    </div>
+
+    <script>
+        // Un nuovo utente è chi non ha ancora una chiave dati salvata su questo dispositivo
+        if (!localStorage.getItem('subtrack-onboarded')) {
+            document.getElementById('onboarding-overlay').classList.add('show');
+        }
+        document.getElementById('onboarding-close').addEventListener('click', () => {
+            localStorage.setItem('subtrack-onboarded', '1');
+            document.getElementById('onboarding-overlay').classList.remove('show');
+        });
+    </script>
+
     <script>
         const EMOJI_CHOICES = ["🚗","🏥","🛣️","📱","☁️","🎵","🛡️","🎮","🍿","📦","📺","🍎","💻","🏠","🎬","🛒","💳","⚡","🐾","🏋️"];
 
-        // Dati di esempio mostrati solo la primissima volta che si apre l'app
-        // (nessun dato personale: ognuno inserisce i propri abbonamenti dal proprio telefono)
-        const SEED = [
-            { id: 1, nome: "Netflix", categoria: "Streaming", freq: "Annuale", costo: 60.00, metodo: "Carta", emoji: "🍿" },
-            { id: 2, nome: "Spotify", categoria: "Musica", freq: "Mensile", costo: 6.49, metodo: "Carta", emoji: "🎵" },
-            { id: 3, nome: "Palestra", categoria: "Sport", freq: "Mensile", costo: 35.00, metodo: "Bonifico", emoji: "🏋️" }
-        ];
+        // Nessun dato precaricato: l'app parte vuota, ogni utente inserisce i propri abbonamenti
+        const SEED = [];
 
         let data = [];
         let currentFilter = "Tutti";
@@ -544,7 +589,10 @@
             const filteredData = data.filter(item => currentFilter === "Tutti" || item.freq === currentFilter);
 
             if (filteredData.length === 0) {
-                listContainer.innerHTML = `<div class="empty-state"><span class="e">🌱</span>Nessun abbonamento qui.<br>Aggiungine uno con il pulsante +</div>`;
+                const msg = data.length === 0
+                    ? 'Ancora nessun abbonamento.<br>Tocca + per aggiungere il primo!'
+                    : 'Nessun abbonamento qui.<br>Aggiungine uno con il pulsante +';
+                listContainer.innerHTML = `<div class="empty-state"><span class="e">🌱</span>${msg}</div>`;
             }
 
             filteredData.forEach((item, index) => {
@@ -688,6 +736,35 @@
             closeModal();
             renderApp();
             showToast('🗑️ Abbonamento eliminato');
+        });
+
+        // --- Esporta / Importa (per copiare i dati tra dispositivi) ---
+        document.getElementById('export-btn').addEventListener('click', () => {
+            const json = JSON.stringify(data);
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(json).then(() => {
+                    showToast('📤 Dati copiati! Incollali sull\'altro dispositivo');
+                }).catch(() => {
+                    prompt('Copia questo testo:', json);
+                });
+            } else {
+                prompt('Copia questo testo:', json);
+            }
+        });
+
+        document.getElementById('import-btn').addEventListener('click', () => {
+            const text = prompt('Incolla qui il testo esportato:');
+            if (!text) return;
+            try {
+                const parsed = JSON.parse(text);
+                if (!Array.isArray(parsed)) throw new Error('formato non valido');
+                data = parsed;
+                persist();
+                renderApp();
+                showToast('✅ Dati importati con successo');
+            } catch (e) {
+                showToast('⚠️ Testo non valido, controlla e riprova');
+            }
         });
 
         // Avvio iniziale
