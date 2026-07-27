@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SubTrack 💸 - Gestione Spese</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+        :root {
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --primary: #6366f1;
+            --gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            --radius: 20px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding-bottom: 80px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            margin-top: 10px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 800;
+        }
+
+        .dashboard {
+            background: var(--gradient);
+            border-radius: var(--radius);
+            padding: 25px;
+            color: white;
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
+            margin-bottom: 25px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .dashboard:active {
+            transform: scale(0.98);
+        }
+
+        .dash-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .dash-total {
+            font-size: 38px;
+            font-weight: 800;
+            margin-bottom: 15px;
+            letter-spacing: -1px;
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+        }
+
+        .dash-footer {
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            padding-top: 15px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            scrollbar-width: none;
+        }
+        .filters::-webkit-scrollbar { display: none; }
+
+        .filter-btn {
+            background: var(--card-bg);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .subs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 18px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 0.5s forwards ease-out;
+            cursor: pointer;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+        }
+
+        .emoji-icon {
+            font-size: 32px;
+            width: 60px;
+            height: 60px;
+            background: #f8fafc;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .card-content {
+            flex-grow: 1;
+            min-width: 0;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .card-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge {
+            background: #e2e8f0;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+        .badge.mensile { background: #dcfce7; color: #166534; }
+        .badge.annuale { background: #fef08a; color: #854d0e; }
+
+        .card-price {
+            text-align: right;
+            flex-shrink: 0;
+            margin-left: 10px;
+        }
+
+        .price-amount {
+            font-weight: 800;
+            font-size: 18px;
+            color: var(--text-main);
+        }
+
+        .price-freq {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        .empty-state .e { font-size: 40px; display: block; margin-bottom: 10px; }
+
+        .fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: var(--gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 30px;
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.4);
+            cursor: pointer;
+            transition: transform 0.3s ease;
+            z-index: 100;
+            border: none;
+        }
+
+        .fab:hover {
+            transform: scale(1.1) rotate(90deg);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 110px;
+            right: 30px;
+            left: 30px;
+            background: #1e293b;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            z-index: 99;
+            text-align: center;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        @media (min-width: 500px) {
+            .toast { left: auto; width: 280px; }
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* --- Modale (aggiunta/modifica) --- */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(2px);
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            z-index: 200;
+        }
+        .overlay.show {
+            display: flex;
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @media (min-width: 500px) {
+            .overlay { align-items: center; }
+        }
+
+        .modal {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 480px;
+            max-height: 88vh;
+            overflow-y: auto;
+            border-radius: 24px 24px 0 0;
+            padding: 24px;
+            animation: slideUp 0.25s ease-out;
+        }
+        @media (min-width: 500px) {
+            .modal { border-radius: 24px; margin-bottom: 20px; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+        .modal-header h2 { font-size: 18px; font-weight: 800; }
+        .modal-close {
+            background: #f1f0ff;
+            color: var(--primary);
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .field { margin-bottom: 14px; }
+        .field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .field input, .field select {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1.5px solid #e2e8f0;
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            color: var(--text-main);
+        }
+        .field input:focus, .field select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        .emoji-picker {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .emoji-opt {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        .emoji-opt.active {
+            border-color: var(--primary);
+            background: #eef2ff;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 14px;
+            border: none;
+            font-weight: 700;
+            font-size: 14.5px;
+            cursor: pointer;
+            transition: transform 0.15s ease;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: var(--gradient); color: white; }
+        .btn-danger { background: #fee2e2; color: #b91c1c; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>SubTrack 💸✨</h1>
+            <span style="font-size:24px">👋</span>
+        </div>
+
+        <div class="dashboard" id="dashboard">
+            <div class="dash-label">Spesa Totale (Equivalente Mensile)</div>
+            <div class="dash-total">
+                <span style="font-size:24px;">€</span>
+                <span id="totale-mensile">0.00</span>
+            </div>
+            <div class="dash-footer">
+                <div>
+                    <div class="dash-label">Totale Annuo</div>
+                    <div style="font-weight:600; font-size: 18px;">€ <span id="totale-annuo">0.00</span></div>
+                </div>
+                <div style="text-align: right;">
+                    <div class="dash-label">Attivi</div>
+                    <div style="font-weight:600; font-size: 18px;"><span id="conteggio">0</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="filters" id="filters">
+            <button class="filter-btn active" data-filter="Tutti">🌈 Tutti</button>
+            <button class="filter-btn" data-filter="Mensile">📅 Mensili</button>
+            <button class="filter-btn" data-filter="Annuale">🗓️ Annuali</button>
+        </div>
+
+        <div class="subs-list" id="subs-list">
+            <!-- Le card verranno inserite qui dinamicamente -->
+        </div>
+    </div>
+
+    <p style="text-align:center; font-size:11px; color:var(--text-muted); margin-top:20px; padding: 0 20px;">
+        🔒 I dati restano solo su questo dispositivo — nessuna informazione viene inviata altrove.
+    </p>
+
+    <button class="fab" id="fab-btn">+</button>
+    <div class="toast" id="toast-msg">Funzionalità in arrivo! 🚀</div>
+
+    <div class="overlay" id="overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modal-title">Nuovo abbonamento</h2>
+                <button class="modal-close" id="modal-close">✕</button>
+            </div>
+
+            <div class="field">
+                <label>Nome</label>
+                <input id="f-nome" placeholder="es. Netflix">
+            </div>
+            <div class="field">
+                <label>Categoria</label>
+                <input id="f-categoria" placeholder="es. Streaming">
+            </div>
+            <div class="row2">
+                <div class="field">
+                    <label>Frequenza</label>
+                    <select id="f-freq">
+                        <option value="Mensile">Mensile</option>
+                        <option value="Annuale">Annuale</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Costo (€)</label>
+                    <input id="f-costo" type="number" step="0.01" placeholder="0.00">
+                </div>
+            </div>
+            <div class="field">
+                <label>Metodo di pagamento</label>
+                <input id="f-metodo" placeholder="es. Carta ING">
+            </div>
+            <div class="field">
+                <label>Icona</label>
+                <div class="emoji-picker" id="emoji-picker"></div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-danger" id="delete-btn" style="display:none;">🗑️ Elimina</button>
+                <button class="btn btn-primary" id="save-btn">💾 Salva</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const EMOJI_CHOICES = ["🚗","🏥","🛣️","📱","☁️","🎵","🛡️","🎮","🍿","📦","📺","🍎","💻","🏠","🎬","🛒","💳","⚡","🐾","🏋️"];
+
+        // Dati di esempio mostrati solo la primissima volta che si apre l'app
+        // (nessun dato personale: ognuno inserisce i propri abbonamenti dal proprio telefono)
+        const SEED = [
+            { id: 1, nome: "Netflix", categoria: "Streaming", freq: "Annuale", costo: 60.00, metodo: "Carta", emoji: "🍿" },
+            { id: 2, nome: "Spotify", categoria: "Musica", freq: "Mensile", costo: 6.49, metodo: "Carta", emoji: "🎵" },
+            { id: 3, nome: "Palestra", categoria: "Sport", freq: "Mensile", costo: 35.00, metodo: "Bonifico", emoji: "🏋️" }
+        ];
+
+        let data = [];
+        let currentFilter = "Tutti";
+        let editingId = null;
+        let selectedEmoji = "💳";
+
+        const listContainer = document.getElementById('subs-list');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+
+        const formatEur = (num) => num.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        // --- Persistenza (solo su questo dispositivo/browser, nessun dato inviato altrove) ---
+        const STORAGE_KEY = 'subtrack-data';
+        function loadData() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                data = raw ? JSON.parse(raw) : SEED;
+            } catch (e) {
+                data = SEED;
+            }
+            renderApp();
+        }
+        function persist() {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+            catch (e) { console.error('Errore salvataggio', e); }
+        }
+
+        function animateValue(obj, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const easeOut = progress * (2 - progress);
+                obj.innerHTML = formatEur(start + easeOut * (end - start));
+                if (progress < 1) window.requestAnimationFrame(step);
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        function renderApp() {
+            listContainer.innerHTML = '';
+            let totaleAnnuo = 0;
+            let totaleMensile = 0;
+            let conteggio = 0;
+
+            const filteredData = data.filter(item => currentFilter === "Tutti" || item.freq === currentFilter);
+
+            if (filteredData.length === 0) {
+                listContainer.innerHTML = `<div class="empty-state"><span class="e">🌱</span>Nessun abbonamento qui.<br>Aggiungine uno con il pulsante +</div>`;
+            }
+
+            filteredData.forEach((item, index) => {
+                if (item.freq === "Mensile") {
+                    totaleMensile += item.costo;
+                    totaleAnnuo += (item.costo * 12);
+                } else {
+                    totaleAnnuo += item.costo;
+                    totaleMensile += (item.costo / 12);
+                }
+                conteggio++;
+
+                const delay = index * 0.06;
+                const badgeClass = item.freq.toLowerCase();
+
+                const cardHtml = `
+                    <div class="card" style="animation-delay: ${delay}s" data-id="${item.id}">
+                        <div class="emoji-icon">${item.emoji}</div>
+                        <div class="card-content">
+                            <div class="card-title">${item.nome}</div>
+                            <div class="card-subtitle">
+                                <span class="badge ${badgeClass}">${item.freq}</span>
+                                💳 ${item.metodo}
+                            </div>
+                        </div>
+                        <div class="card-price">
+                            <div class="price-amount">€ ${formatEur(item.costo)}</div>
+                            <div class="price-freq">/${item.freq === 'Mensile' ? 'mese' : 'anno'}</div>
+                        </div>
+                    </div>
+                `;
+                listContainer.insertAdjacentHTML('beforeend', cardHtml);
+            });
+
+            listContainer.querySelectorAll('.card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const id = parseInt(card.getAttribute('data-id'));
+                    const item = data.find(d => d.id === id);
+                    if (item) openModal(item);
+                });
+            });
+
+            const tmElement = document.getElementById('totale-mensile');
+            const taElement = document.getElementById('totale-annuo');
+            animateValue(tmElement, 0, totaleMensile, 800);
+            animateValue(taElement, 0, totaleAnnuo, 800);
+            document.getElementById('conteggio').innerText = conteggio;
+        }
+
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentFilter = e.target.getAttribute('data-filter');
+                renderApp();
+            });
+        });
+
+        // --- Toast ---
+        let toastTimeout;
+        function showToast(msg) {
+            const toast = document.getElementById('toast-msg');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // --- Emoji picker ---
+        function buildEmojiPicker() {
+            const box = document.getElementById('emoji-picker');
+            box.innerHTML = '';
+            EMOJI_CHOICES.forEach(e => {
+                const opt = document.createElement('div');
+                opt.className = 'emoji-opt' + (e === selectedEmoji ? ' active' : '');
+                opt.textContent = e;
+                opt.onclick = () => {
+                    selectedEmoji = e;
+                    box.querySelectorAll('.emoji-opt').forEach(o => o.classList.remove('active'));
+                    opt.classList.add('active');
+                };
+                box.appendChild(opt);
+            });
+        }
+
+        // --- Modale ---
+        function openModal(item) {
+            editingId = item ? item.id : null;
+            selectedEmoji = item ? item.emoji : "💳";
+            document.getElementById('modal-title').textContent = item ? '✏️ Modifica abbonamento' : '✨ Nuovo abbonamento';
+            document.getElementById('f-nome').value = item ? item.nome : '';
+            document.getElementById('f-categoria').value = item ? item.categoria : '';
+            document.getElementById('f-freq').value = item ? item.freq : 'Mensile';
+            document.getElementById('f-costo').value = item ? item.costo : '';
+            document.getElementById('f-metodo').value = item ? item.metodo : '';
+            document.getElementById('delete-btn').style.display = item ? 'block' : 'none';
+            buildEmojiPicker();
+            document.getElementById('overlay').classList.add('show');
+        }
+        function closeModal() {
+            document.getElementById('overlay').classList.remove('show');
+        }
+
+        document.getElementById('fab-btn').addEventListener('click', () => openModal(null));
+        document.getElementById('modal-close').addEventListener('click', closeModal);
+        document.getElementById('overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'overlay') closeModal();
+        });
+
+        document.getElementById('save-btn').addEventListener('click', () => {
+            const nome = document.getElementById('f-nome').value.trim();
+            const costo = parseFloat(document.getElementById('f-costo').value);
+            if (!nome || isNaN(costo)) { showToast('⚠️ Inserisci nome e costo'); return; }
+
+            const payload = {
+                nome,
+                categoria: document.getElementById('f-categoria').value.trim(),
+                freq: document.getElementById('f-freq').value,
+                costo,
+                metodo: document.getElementById('f-metodo').value.trim(),
+                emoji: selectedEmoji
+            };
+
+            if (editingId) {
+                data = data.map(d => d.id === editingId ? { ...d, ...payload } : d);
+                showToast('✅ Abbonamento aggiornato');
+            } else {
+                payload.id = Date.now();
+                data.push(payload);
+                showToast('🎉 Abbonamento aggiunto');
+            }
+
+            persist();
+            closeModal();
+            renderApp();
+        });
+
+        document.getElementById('delete-btn').addEventListener('click', () => {
+            data = data.filter(d => d.id !== editingId);
+            persist();
+            closeModal();
+            renderApp();
+            showToast('🗑️ Abbonamento eliminato');
+        });
+
+        // Avvio iniziale
+        loadData();
+    </script>
+</body>
+</html>
