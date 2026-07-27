@@ -481,6 +481,10 @@
                 <input id="f-metodo" placeholder="es. Carta ING">
             </div>
             <div class="field">
+                <label id="f-data-label">Giorno di addebito (ogni mese)</label>
+                <input id="f-data" type="date">
+            </div>
+            <div class="field">
                 <label>Icona</label>
                 <div class="emoji-picker" id="emoji-picker"></div>
             </div>
@@ -578,7 +582,30 @@
     </script>
 
     <script>
-        const EMOJI_CHOICES = ["🚗","🏥","🛣️","📱","☁️","🎵","🛡️","🎮","🍿","📦","📺","🍎","💻","🏠","🎬","🛒","💳","⚡","🐾","🏋️"];
+        const EMOJI_CHOICES = [
+            // Istruzione / lavoro
+            "🎓","📚","✏️","💼","🏢","🖥️",
+            // Tasse / burocrazia / finanza
+            "🧾","📄","🏛️","⚖️","💰","🏦","📈",
+            // Casa / utenze
+            "🏠","💡","🔥","💧","🛋️","🧹","🔧",
+            // Auto / trasporti
+            "🚗","⛽","🛣️","🚌","🚆","🚲","🅿️",
+            // Assicurazioni / salute
+            "🛡️","🏥","💊","🦷","🩺","🏋️",
+            // Tecnologia
+            "📱","💻","☁️","🎧","🖨️","🔌",
+            // Streaming / intrattenimento
+            "🍿","📺","🎮","🎵","🎬","📖",
+            // Casa / famiglia / animali
+            "👶","🐾","🌱","🧸",
+            // Shopping / cibo
+            "📦","🛒","🍕","☕",
+            // Viaggi / tempo libero
+            "✈️","🏖️","⛰️","🎉",
+            // Varie
+            "💳","⚡","🎁","📌"
+        ];
 
         // Nessun dato precaricato: l'app parte vuota, ogni utente inserisce i propri abbonamenti
         const SEED = [];
@@ -592,6 +619,18 @@
         const filterBtns = document.querySelectorAll('.filter-btn');
 
         const formatEur = (num) => num.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const MESI = ["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
+        function formatDataAddebito(item) {
+            if (!item.dataAddebito) return '';
+            const d = new Date(item.dataAddebito + 'T00:00:00');
+            if (isNaN(d)) return '';
+            if (item.freq === 'Mensile') {
+                return `il ${d.getDate()} di ogni mese`;
+            } else {
+                return `${d.getDate()} ${MESI[d.getMonth()]} di ogni anno`;
+            }
+        }
 
         // --- Persistenza (solo su questo dispositivo/browser, nessun dato inviato altrove) ---
         const STORAGE_KEY = 'subtrack-data';
@@ -648,6 +687,7 @@
 
                 const delay = index * 0.06;
                 const badgeClass = item.freq.toLowerCase();
+                const dataInfo = formatDataAddebito(item);
 
                 const cardHtml = `
                     <div class="card" style="animation-delay: ${delay}s" data-id="${item.id}">
@@ -657,6 +697,7 @@
                             <div class="card-subtitle">
                                 <span class="badge ${badgeClass}">${item.freq}</span>
                                 💳 ${item.metodo}
+                                ${dataInfo ? `<span>📅 ${dataInfo}</span>` : ''}
                             </div>
                         </div>
                         <div class="card-price">
@@ -720,6 +761,12 @@
         }
 
         // --- Modale ---
+        function updateDataLabel(freq) {
+            document.getElementById('f-data-label').textContent = freq === 'Mensile'
+                ? 'Giorno di addebito (ogni mese)'
+                : 'Data di addebito (ogni anno)';
+        }
+
         function openModal(item) {
             editingId = item ? item.id : null;
             selectedEmoji = item ? item.emoji : "💳";
@@ -729,6 +776,8 @@
             document.getElementById('f-freq').value = item ? item.freq : 'Mensile';
             document.getElementById('f-costo').value = item ? item.costo : '';
             document.getElementById('f-metodo').value = item ? item.metodo : '';
+            document.getElementById('f-data').value = item && item.dataAddebito ? item.dataAddebito : '';
+            updateDataLabel(document.getElementById('f-freq').value);
             document.getElementById('delete-btn').style.display = item ? 'block' : 'none';
             buildEmojiPicker();
             document.getElementById('overlay').classList.add('show');
@@ -736,6 +785,8 @@
         function closeModal() {
             document.getElementById('overlay').classList.remove('show');
         }
+
+        document.getElementById('f-freq').addEventListener('change', (e) => updateDataLabel(e.target.value));
 
         document.getElementById('fab-btn').addEventListener('click', () => openModal(null));
         document.getElementById('modal-close').addEventListener('click', closeModal);
@@ -754,6 +805,7 @@
                 freq: document.getElementById('f-freq').value,
                 costo,
                 metodo: document.getElementById('f-metodo').value.trim(),
+                dataAddebito: document.getElementById('f-data').value || null,
                 emoji: selectedEmoji
             };
 
