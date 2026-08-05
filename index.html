@@ -142,11 +142,31 @@
             transform: translateY(20px);
             animation: fadeInUp 0.5s forwards ease-out;
             cursor: pointer;
+            touch-action: pan-y;
+            user-select: none;
         }
 
         .card:hover {
             transform: translateY(-3px);
             box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+        }
+
+        .card.frozen {
+            opacity: 0.55;
+            filter: grayscale(0.45);
+        }
+
+        .card.frozen .price-amount {
+            color: var(--text-muted);
+        }
+
+        .card.swiping {
+            transition: none;
+        }
+
+        .frozen-label {
+            color: var(--text-muted);
+            font-weight: 700;
         }
 
         .emoji-icon {
@@ -490,6 +510,13 @@
                 <div class="emoji-picker" id="emoji-picker"></div>
             </div>
 
+            <div class="field">
+                <label style="display:flex; align-items:center; gap:8px; text-transform:none; cursor:pointer;">
+                    <input id="f-frozen" type="checkbox" style="width:18px; height:18px;">
+                    ❄️ Congela questa spesa: non verrà contabilizzata
+                </label>
+            </div>
+
             <div class="modal-actions">
                 <button class="btn btn-danger" id="delete-btn" style="display:none;">🗑️ Elimina</button>
                 <button class="btn btn-primary" id="save-btn">💾 Salva</button>
@@ -635,12 +662,17 @@
 
         // --- Persistenza (solo su questo dispositivo/browser, nessun dato inviato altrove) ---
         const STORAGE_KEY = 'subtrack-data';
+
+        function normalizeItem(item) {
+            return { ...item, frozen: item.frozen === true };
+        }
+
         function loadData() {
             try {
                 const raw = localStorage.getItem(STORAGE_KEY);
-                data = raw ? JSON.parse(raw) : SEED;
+                data = raw ? JSON.parse(raw).map(normalizeItem) : SEED.map(normalizeItem);
             } catch (e) {
-                data = SEED;
+                data = SEED.map(normalizeItem);
             }
             renderApp();
         }
@@ -661,6 +693,93 @@
             window.requestAnimationFrame(step);
         }
 
+        const SWIPE_THRESHOLD = 90;
+
+        function deleteItemById(id) {
+            data = data.filter(d => d.id !== id);
+            persist();
+            renderApp();
+            showToast('🗑️ Spesa eliminata');
+        }
+
+        function toggleFrozenById(id) {
+            data = data.map(d => d.id === id ? { ...d, frozen: d.frozen !== true } : d);
+            const item = data.find(d => d.id === id);
+            persist();
+            renderApp();
+            showToast(item && item.frozen ? '❄️ Spesa congelata' : '✅ Spesa riattivata');
+        }
+
+        function bindCardSwipe(card) {
+            let startX = 0;
+            let startY = 0;
+            let currentX = 0;
+            let isHorizontalSwipe = false;
+            let suppressClick = false;
+
+            card.addEventListener('touchstart', (event) => {
+                if (event.touches.length !== 1) return;
+                startX = event.touches[0].clientX;
+                startY = event.touches[0].clientY;
+                currentX = 0;
+                isHorizontalSwipe = false;
+            }, { passive: true });
+
+            card.addEventListener('touchmove', (event) => {
+                if (!startX || event.touches.length !== 1) return;
+                const deltaX = event.touches[0].clientX - startX;
+                const deltaY = event.touches[0].clientY - startY;
+
+                if (!isHorizontalSwipe && Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                    isHorizontalSwipe = true;
+                }
+
+                if (isHorizontalSwipe) {
+                    event.preventDefault();
+                    currentX = Math.max(-130, Math.min(130, deltaX));
+                    card.classList.add('swiping');
+                    card.style.transform = `translateX(${currentX}px)`;
+                }
+            }, { passive: false });
+
+            const finishSwipe = () => {
+                if (!isHorizontalSwipe) return;
+
+                const id = parseInt(card.getAttribute('data-id'), 10);
+                suppressClick = true;
+                card.classList.remove('swiping');
+                card.style.transform = '';
+
+                if (currentX <= -SWIPE_THRESHOLD) {
+                    if (window.confirm('Vuoi eliminare questa spesa?')) {
+                        deleteItemById(id);
+                    }
+                } else if (currentX >= SWIPE_THRESHOLD) {
+                    toggleFrozenById(id);
+                }
+
+                startX = 0;
+                startY = 0;
+                currentX = 0;
+                isHorizontalSwipe = false;
+                setTimeout(() => { suppressClick = false; }, 500);
+            };
+
+            card.addEventListener('touchend', finishSwipe);
+            card.addEventListener('touchcancel', finishSwipe);
+
+            card.addEventListener('click', (event) => {
+                if (suppressClick) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return;
+                }
+                const id = parseInt(card.getAttribute('data-id'), 10);
+                const item = data.find(d => d.id === id);
+                if (item) openModal(item);
+            });
+        }
+
         function renderApp() {
             listContainer.innerHTML = '';
             let totaleAnnuo = 0;
@@ -677,21 +796,25 @@
             }
 
             filteredData.forEach((item, index) => {
-                if (item.freq === "Mensile") {
-                    totaleMensile += item.costo;
-                    totaleAnnuo += (item.costo * 12);
-                } else {
-                    totaleAnnuo += item.costo;
-                    totaleMensile += (item.costo / 12);
+                if (item.frozen !== true) {
+                    if (item.freq === "Mensile") {
+                        totaleMensile += item.costo;
+                        totaleAnnuo += (item.costo * 12);
+                    } else {
+                        totaleAnnuo += item.costo;
+                        totaleMensile += (item.costo / 12);
+                    }
+                    conteggio++;
                 }
-                conteggio++;
 
                 const delay = index * 0.06;
                 const badgeClass = item.freq.toLowerCase();
                 const dataInfo = formatDataAddebito(item);
+                const cardClass = item.frozen === true ? ' frozen' : '';
+                const frozenInfo = item.frozen === true ? '<span class="frozen-label">❄️ Congelata</span>' : '';
 
                 const cardHtml = `
-                    <div class="card" style="animation-delay: ${delay}s" data-id="${item.id}">
+                    <div class="card${cardClass}" style="animation-delay: ${delay}s" data-id="${item.id}">
                         <div class="emoji-icon">${item.emoji}</div>
                         <div class="card-content">
                             <div class="card-title">${item.nome}</div>
@@ -699,6 +822,7 @@
                                 <span class="badge ${badgeClass}">${item.freq}</span>
                                 💳 ${item.metodo}
                                 ${dataInfo ? `<span>📅 ${dataInfo}</span>` : ''}
+                                ${frozenInfo}
                             </div>
                         </div>
                         <div class="card-price">
@@ -710,13 +834,7 @@
                 listContainer.insertAdjacentHTML('beforeend', cardHtml);
             });
 
-            listContainer.querySelectorAll('.card').forEach(card => {
-                card.addEventListener('click', () => {
-                    const id = parseInt(card.getAttribute('data-id'));
-                    const item = data.find(d => d.id === id);
-                    if (item) openModal(item);
-                });
-            });
+            listContainer.querySelectorAll('.card').forEach(card => bindCardSwipe(card));
 
             const tmElement = document.getElementById('totale-mensile');
             const taElement = document.getElementById('totale-annuo');
@@ -778,6 +896,7 @@
             document.getElementById('f-costo').value = item ? item.costo : '';
             document.getElementById('f-metodo').value = item ? item.metodo : '';
             document.getElementById('f-data').value = item && item.dataAddebito ? item.dataAddebito : '';
+            document.getElementById('f-frozen').checked = item ? item.frozen === true : false;
             updateDataLabel(document.getElementById('f-freq').value);
             document.getElementById('delete-btn').style.display = item ? 'block' : 'none';
             buildEmojiPicker();
@@ -807,7 +926,8 @@
                 costo,
                 metodo: document.getElementById('f-metodo').value.trim(),
                 dataAddebito: document.getElementById('f-data').value || null,
-                emoji: selectedEmoji
+                emoji: selectedEmoji,
+                frozen: document.getElementById('f-frozen').checked
             };
 
             if (editingId) {
@@ -852,7 +972,7 @@
             try {
                 const parsed = JSON.parse(text);
                 if (!Array.isArray(parsed)) throw new Error('formato non valido');
-                data = parsed;
+                data = parsed.map(normalizeItem);
                 persist();
                 renderApp();
                 showToast('✅ Dati importati con successo');
@@ -866,3 +986,4 @@
     </script>
 </body>
 </html>
+
