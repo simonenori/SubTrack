@@ -144,6 +144,45 @@
             cursor: pointer;
             touch-action: pan-y;
             user-select: none;
+            position: relative;
+            z-index: 2;
+        }
+
+        .card-swipe-container {
+            position: relative;
+            overflow: hidden;
+            border-radius: var(--radius);
+        }
+
+        .swipe-action {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 92px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            opacity: 0;
+            transform: scale(0.72);
+            transition: opacity 0.14s ease, transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+            pointer-events: none;
+        }
+
+        .swipe-action-delete {
+            left: 0;
+            background: #ef4444;
+        }
+
+        .swipe-action-freeze {
+            right: 0;
+            background: #3b82f6;
+        }
+
+        .card-swipe-container.swiping-left .swipe-action-delete,
+        .card-swipe-container.swiping-right .swipe-action-freeze {
+            opacity: 1;
+            transform: scale(1);
         }
 
         .card:hover {
@@ -711,6 +750,7 @@
         }
 
         function bindCardSwipe(card) {
+            const swipeContainer = card.parentElement;
             let startX = 0;
             let startY = 0;
             let currentX = 0;
@@ -739,6 +779,14 @@
                     currentX = Math.max(-130, Math.min(130, deltaX));
                     card.classList.add('swiping');
                     card.style.transform = `translateX(${currentX}px)`;
+
+                    swipeContainer.classList.toggle('swiping-left', currentX < 0);
+                    swipeContainer.classList.toggle('swiping-right', currentX > 0);
+                    const progress = Math.min(Math.abs(currentX) / SWIPE_THRESHOLD, 1);
+                    const action = currentX < 0
+                        ? swipeContainer.querySelector('.swipe-action-delete')
+                        : swipeContainer.querySelector('.swipe-action-freeze');
+                    if (action) action.style.opacity = String(0.35 + (progress * 0.65));
                 }
             }, { passive: false });
 
@@ -749,6 +797,10 @@
                 suppressClick = true;
                 card.classList.remove('swiping');
                 card.style.transform = '';
+                swipeContainer.classList.remove('swiping-left', 'swiping-right');
+                swipeContainer.querySelectorAll('.swipe-action').forEach(action => {
+                    action.style.opacity = '';
+                });
 
                 if (currentX <= -SWIPE_THRESHOLD) {
                     if (window.confirm('Vuoi eliminare questa spesa?')) {
@@ -814,7 +866,10 @@
                 const frozenInfo = item.frozen === true ? '<span class="frozen-label">❄️ Congelata</span>' : '';
 
                 const cardHtml = `
-                    <div class="card${cardClass}" style="animation-delay: ${delay}s" data-id="${item.id}">
+                    <div class="card-swipe-container">
+                        <div class="swipe-action swipe-action-delete" aria-hidden="true">🗑️</div>
+                        <div class="swipe-action swipe-action-freeze" aria-hidden="true">❄️</div>
+                        <div class="card${cardClass}" style="animation-delay: ${delay}s" data-id="${item.id}">
                         <div class="emoji-icon">${item.emoji}</div>
                         <div class="card-content">
                             <div class="card-title">${item.nome}</div>
@@ -828,6 +883,7 @@
                         <div class="card-price">
                             <div class="price-amount">€ ${formatEur(item.costo)}</div>
                             <div class="price-freq">/${item.freq === 'Mensile' ? 'mese' : 'anno'}</div>
+                        </div>
                         </div>
                     </div>
                 `;
@@ -986,4 +1042,3 @@
     </script>
 </body>
 </html>
-
